@@ -93,11 +93,6 @@ app.get('/events', async (req, res) => {
   res.send(events);
 });
 
-app.get('/events/:id', async (req, res) => {
-  const { id } = req.params;
-  const event = await eventsCollection.findOne({ _id: new ObjectId(id) });  
-  res.send(event);
-});
 
 app.get("/events/recent-upcoming", async (req, res) => {
   try {
@@ -134,6 +129,14 @@ app.get("/events/completed", async (req, res) => {
     });
   }
 });
+
+app.get('/events/:id', async (req, res) => {
+  const { id } = req.params;
+  const event = await eventsCollection.findOne({ _id: new ObjectId(id) });  
+  res.send(event);
+});
+
+
 
 
 app.get('/', (req, res) => {
