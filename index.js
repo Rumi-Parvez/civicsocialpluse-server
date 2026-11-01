@@ -27,7 +27,17 @@ const dbClient = await connectToMongoDB();
 const db = dbClient.db('CivicSocialPluse-DB');
 const usersCollection = db.collection('user');
 const eventsCollection = db.collection('events');
-
+const joinedEventsCollection = db.collection('joinedEvents');
+await joinedEventsCollection.createIndex(
+  {
+    "eventData._id": 1,
+    "userData.email": 1,
+  },
+  {
+    unique: true,
+    name: "unique_user_event_join",
+  }
+);
 const authBaseURL = process.env.BETTER_AUTH_URL;
 
 if (!authBaseURL) {
@@ -191,6 +201,163 @@ app.delete("/events/:id", verifyToken, async (req, res) => {
   });
 
   res.send(result);
+});
+
+
+
+app.post("/join", verifyToken, async (req, res) => {
+  try {
+    const { eventData, userData } = req.body;
+    const userEmail = res.locals.user.email;
+
+    if (!eventData?._id) {
+      return res.status(400).send({
+        message: "Event information is required.",
+      });
+    }
+
+    const alreadyJoined = await joinedEventsCollection.findOne({
+      "eventData._id": eventData._id,
+      "userData.email": userEmail,
+    });
+
+    if (alreadyJoined) {
+      return res.status(409).send({
+        message: "You have already joined this event.",
+        isJoined: true,
+      });
+    }
+
+    const joinRecord = {
+      eventData,
+      userData: {
+        name: res.locals.user.name,
+        email: userEmail,
+        image: userData?.image || "",
+      },
+    };
+
+    const result = await joinedEventsCollection.insertOne(joinRecord);
+
+    res.status(201).send({
+      success: true,
+      message: "Successfully joined the event.",
+      isJoined: true,
+      insertedId: result.insertedId,
+    });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).send({
+        message: "You have already joined this event.",
+        isJoined: true,
+      });
+    }
+
+    console.error("JOIN EVENT ERROR:", error);
+
+    res.status(500).send({
+      message: "Failed to join event.",
+    });
+  }
+});
+
+
+app.get("/join",  async (req, res) => {
+  try {
+    const joinedEvents = await joinedEventsCollection.find().toArray();
+    res.send(joinedEvents);
+  } catch (error) {
+    console.error("Failed to fetch joined events:", error);
+    res.status(500).send({
+      message: "Failed to fetch joined events",
+    });
+  }
+}); 
+
+app.get("/join/:email", async (req, res) => {
+  try {
+    const email = req.params.email;
+
+    const joinedEvents = await joinedEventsCollection
+      .find({ "userData.email": email })
+      .toArray();
+
+    res.send(joinedEvents);
+  } catch (error) {
+    console.log(error);
+
+    res.status(500).send({
+      message: "Failed to fetch joined events",
+    });
+  }
+});
+
+
+app.get("/join/:eventId", verifyToken, async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const userEmail = res.locals.user.email;
+
+    const joinedRecord = await joinedEventsCollection.findOne({
+      "eventData._id": eventId,
+      "userData.email": userEmail,
+    });
+
+    const attendeesCount = await joinedEventsCollection.countDocuments({
+      "eventData._id": eventId,
+    });
+
+    res.status(200).send({
+      isJoined: Boolean(joinedRecord),
+      attendeesCount,
+    });
+  } catch (error) {
+    console.error("JOIN STATUS ERROR:", error);
+
+    res.status(500).send({
+      message: "Failed to check join status",
+    });
+  }
+});
+
+
+
+app.delete("/join/:eventId", verifyToken, async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const userEmail = res.locals.user.email;
+
+    if (!eventId || !userEmail) {
+      return res.status(400).send({
+        success: false,
+        message: "Event ID and user authentication are required.",
+      });
+    }
+
+    const result = await joinedEventsCollection.deleteOne({
+      "eventData._id": eventId,
+      "userData.email": userEmail,
+    });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).send({
+        success: false,
+        message: "Joined event record not found.",
+      });
+    }
+
+    res.status(200).send({
+      success: true,
+      message: "Successfully left the event.",
+    });
+  } catch (error) {
+    console.error("LEAVE EVENT ERROR:", error);
+
+    res.status(500).send({
+      success: false,
+      message: "Failed to leave the event.",
+    });
+  }
 });
 
 
