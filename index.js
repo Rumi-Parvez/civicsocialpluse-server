@@ -130,6 +130,23 @@ app.get("/events/completed", async (req, res) => {
   }
 });
 
+app.get("/events/my-events", verifyToken, async (req, res) => {
+  try {
+    const email = res.locals.user.email;
+
+    const events = await eventsCollection
+      .find({ createdBy: email })
+      .toArray();
+
+    res.send(events);
+  } catch (error) {
+    console.error("My Events Error:", error);
+
+    res.status(500).send({
+      message: "Failed to fetch events",
+    });
+  }
+});
 app.get('/events/:id', async (req, res) => {
   const { id } = req.params;
   const event = await eventsCollection.findOne({ _id: new ObjectId(id) });  
@@ -137,6 +154,44 @@ app.get('/events/:id', async (req, res) => {
 });
 
 
+app.patch("/events/:id", verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await eventsCollection.updateOne(
+      {
+        _id: new ObjectId(id),
+        createdBy: res.locals.user.email,
+      },
+      {
+        $set: req.body,
+      }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).send({
+        message: "Event not found or unauthorized",
+      });
+    }
+
+    res.send(result);
+  } catch (error) {
+    res.status(500).send({
+      message: "Failed to update event",
+    });
+  }
+});
+
+app.delete("/events/:id", verifyToken, async (req, res) => {
+  const { id } = req.params;
+
+  const result = await eventsCollection.deleteOne({
+    _id: new ObjectId(id),
+    createdBy: res.locals.user.email,
+  });
+
+  res.send(result);
+});
 
 
 app.get('/', (req, res) => {
