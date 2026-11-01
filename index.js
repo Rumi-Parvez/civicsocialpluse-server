@@ -1,8 +1,8 @@
 import cors from 'cors';
 import 'dotenv/config';
 import express from 'express';
-import { MongoClient } from 'mongodb';
-
+import { MongoClient, ObjectId } from 'mongodb';
+import { createRemoteJWKSet, jwtVerify } from "jose";
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -28,6 +28,57 @@ const db = dbClient.db('CivicSocialPluse-DB');
 const usersCollection = db.collection('user');
 const eventsCollection = db.collection('events');
 
+const authBaseURL = process.env.BETTER_AUTH_URL;
+
+if (!authBaseURL) {
+  throw new Error("BETTER_AUTH_URL is missing.");
+}
+
+const JWKS = createRemoteJWKSet(
+  new URL(`${authBaseURL}/api/auth/jwks`)
+);
+
+const verifyToken = async (req, res, next) => {
+  try {
+    const authorization = req.headers.authorization;
+
+    if (!authorization?.startsWith("Bearer ")) {
+      return res.status(401).send({
+        message: "Authentication token is required.",
+      });
+    }
+
+    const token = authorization.split(" ")[1];
+
+    console.log(token);
+    const { payload } = await jwtVerify(token, JWKS, {
+      issuer: authBaseURL,
+      audience: authBaseURL,
+    });
+
+    if (!payload.sub) {
+      return res.status(401).send({
+        message: "Invalid user token.",
+      });
+    }
+
+    res.locals.user = {
+      id: payload.sub,
+      email: payload.email,
+      name: payload.name,
+    };
+
+    next();
+  } catch (error) {
+    console.error("JWT verification failed:", error);
+
+    return res.status(401).send({
+      message: "Invalid or expired token.",
+    });
+  }
+};
+
+
 
 app.post('/events', async (req, res) => {
   const event = req.body;
@@ -40,6 +91,12 @@ app.post('/events', async (req, res) => {
 app.get('/events', async (req, res) => {
   const events = await eventsCollection.find().toArray();
   res.send(events);
+});
+
+app.get('/events/:id', async (req, res) => {
+  const { id } = req.params;
+  const event = await eventsCollection.findOne({ _id: new ObjectId(id) });  
+  res.send(event);
 });
 
 app.get("/events/recent-upcoming", async (req, res) => {
@@ -86,3 +143,5 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
+
+export default {app , verifyToken};
