@@ -90,7 +90,7 @@ const verifyToken = async (req, res, next) => {
 
 
 
-app.post('/events', async (req, res) => {
+app.post('/events', verifyToken, async (req, res) => {
   const event = req.body;
   const result = await eventsCollection.insertOne(event);
   res.send(result);
@@ -262,7 +262,7 @@ app.post("/join", verifyToken, async (req, res) => {
 });
 
 
-app.get("/join",  async (req, res) => {
+app.get("/join", verifyToken, async (req, res) => {
   try {
     const joinedEvents = await joinedEventsCollection.find().toArray();
     res.send(joinedEvents);
@@ -274,7 +274,7 @@ app.get("/join",  async (req, res) => {
   }
 }); 
 
-app.get("/join/:email", async (req, res) => {
+app.get("/join/:email", verifyToken, async (req, res) => {
   try {
     const email = req.params.email;
 
@@ -361,8 +361,45 @@ app.delete("/join/:eventId", verifyToken, async (req, res) => {
 });
 
 
+
+
+app.get("/join/event/:eventId", async (req, res) => {
+  try {
+    const { eventId } = req.params;
+
+    if (!eventId) {
+      return res.status(400).send({
+        success: false,
+        message: "Event ID is required.",
+      });
+    }
+
+    const joinedRecords = await joinedEventsCollection
+      .find(
+        { "eventData._id": eventId },
+        {
+          projection: {
+            _id: 1,
+          },
+        }
+      )
+      .toArray();
+
+    return res.status(200).send(joinedRecords);
+  } catch (error) {
+    console.error("FETCH JOINED EVENTS ERROR:", error);
+
+    return res.status(500).send({
+      success: false,
+      message: "Failed to fetch joined events.",
+    });
+  }
+});
+
+
+
 app.get('/', (req, res) => {
-  res.send({message: 'Hello, World!'});
+  res.send({message: 'Welcome to Civic Social Pluse Server!'});
 });
 
 app.listen(PORT, () => {
