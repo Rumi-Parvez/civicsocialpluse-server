@@ -42,6 +42,41 @@ app.get('/events', async (req, res) => {
   res.send(events);
 });
 
+app.get("/events/recent-upcoming", async (req, res) => {
+  try {
+    const today = new Date().toISOString().split("T")[0];
+
+    const events = await eventsCollection.find({
+        eventDate: { $gte: today },
+      }).sort({ eventDate: 1 }).limit(6).toArray();
+
+    res.status(200).send(events);
+  } catch (error) {
+    console.error("Failed to fetch recent events:", error);
+    res.status(500).send({
+      message: "Failed to fetch recent upcoming events",
+    });
+  }
+});
+
+app.get("/events/completed", async (req, res) => {
+  try {
+    const today = new Date().toISOString().split("T")[0];
+
+    const completedEvents = await eventsCollection
+      .find({
+        eventDate: { $lt: today },
+      }).sort({ eventDate: -1 }).limit(6).toArray();
+
+    res.status(200).send(completedEvents);
+  } catch (error) {
+    console.error("Failed to fetch completed events:", error);
+
+    res.status(500).send({
+      message: "Failed to fetch completed events",
+    });
+  }
+});
 
 
 app.get('/', (req, res) => {
