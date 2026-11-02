@@ -158,12 +158,6 @@ app.patch("/events/:id", verifyToken, async (req, res) => {
       }
     );
 
-    if (result.matchedCount === 0) {
-      return res.status(404).send({
-        message: "Event not found or unauthorized",
-      });
-    }
-
     res.send(result);
   
 });
@@ -185,12 +179,6 @@ app.post("/join", verifyToken, async (req, res) => {
 
     const { eventData, userData } = req.body;
     const userEmail = res.locals.user.email;
-
-    if (!eventData?._id) {
-      return res.status(400).send({
-        message: "Event information is required.",
-      });
-    }
 
     const alreadyJoined = await joinedEventsCollection.findOne({
       "eventData._id": eventData._id,
@@ -227,8 +215,9 @@ app.post("/join", verifyToken, async (req, res) => {
 
 app.get("/join", verifyToken, async (req, res) => {
 
-    const joinedEvents = await joinedEventsCollection.find().toArray();
-    res.send(joinedEvents);
+    const result = await joinedEventsCollection.find().toArray();
+
+    res.send(result);
  
 }); 
 
@@ -236,9 +225,7 @@ app.get("/join/:email", verifyToken, async (req, res) => {
 
     const email = req.params.email;
 
-    const joinedEvents = await joinedEventsCollection
-      .find({ "userData.email": email })
-      .toArray();
+    const joinedEvents = await joinedEventsCollection.find({ "userData.email": email }).toArray();
 
     res.send(joinedEvents);
   
@@ -255,13 +242,10 @@ app.get("/join/:eventId", verifyToken, async (req, res) => {
       "userData.email": userEmail,
     });
 
-    const attendeesCount = await joinedEventsCollection.countDocuments({
-      "eventData._id": eventId,
-    });
+
 
     res.status(200).send({
       isJoined: Boolean(joinedRecord),
-      attendeesCount,
     });
   
 });
@@ -273,24 +257,10 @@ app.delete("/join/:eventId", verifyToken, async (req, res) => {
     const { eventId } = req.params;
     const userEmail = res.locals.user.email;
 
-    if (!eventId || !userEmail) {
-      return res.status(400).send({
-        success: false,
-        message: "Event ID and user authentication are required.",
-      });
-    }
-
     const result = await joinedEventsCollection.deleteOne({
       "eventData._id": eventId,
       "userData.email": userEmail,
     });
-
-    if (result.deletedCount === 0) {
-      return res.status(404).send({
-        success: false,
-        message: "Joined event record not found.",
-      });
-    }
 
     res.status(200).send({
       success: true,
@@ -306,23 +276,14 @@ app.get("/join/event/:eventId", async (req, res) => {
 
     const { eventId } = req.params;
 
-    if (!eventId) {
-      return res.status(400).send({
-        success: false,
-        message: "Event ID is required.",
-      });
-    }
-
-    const joinedRecords = await joinedEventsCollection
-      .find(
+    const joinedRecords = await joinedEventsCollection.find(
         { "eventData._id": eventId },
         {
           projection: {
             _id: 1,
           },
         }
-      )
-      .toArray();
+      ).toArray();
 
     return res.status(200).send(joinedRecords);
   
