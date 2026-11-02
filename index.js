@@ -25,7 +25,6 @@ export async function connectToMongoDB() {
 
 const dbClient = await connectToMongoDB();
 const db = dbClient.db('CivicSocialPluse-DB');
-const usersCollection = db.collection('user');
 const eventsCollection = db.collection('events');
 const joinedEventsCollection = db.collection('joinedEvents');
 await joinedEventsCollection.createIndex(
@@ -105,7 +104,7 @@ app.get('/events', async (req, res) => {
 
 
 app.get("/events/recent-upcoming", async (req, res) => {
-  try {
+  
     const today = new Date().toISOString().split("T")[0];
 
     const events = await eventsCollection.find({
@@ -113,35 +112,22 @@ app.get("/events/recent-upcoming", async (req, res) => {
       }).sort({ eventDate: 1 }).limit(6).toArray();
 
     res.status(200).send(events);
-  } catch (error) {
-    console.error("Failed to fetch recent events:", error);
-    res.status(500).send({
-      message: "Failed to fetch recent upcoming events",
-    });
-  }
+  
 });
 
 app.get("/events/completed", async (req, res) => {
-  try {
+
     const today = new Date().toISOString().split("T")[0];
 
-    const completedEvents = await eventsCollection
-      .find({
+    const completedEvents = await eventsCollection.find({
         eventDate: { $lt: today },
       }).sort({ eventDate: -1 }).limit(6).toArray();
 
     res.status(200).send(completedEvents);
-  } catch (error) {
-    console.error("Failed to fetch completed events:", error);
-
-    res.status(500).send({
-      message: "Failed to fetch completed events",
-    });
-  }
 });
 
 app.get("/events/my-events", verifyToken, async (req, res) => {
-  try {
+
     const email = res.locals.user.email;
 
     const events = await eventsCollection
@@ -149,13 +135,7 @@ app.get("/events/my-events", verifyToken, async (req, res) => {
       .toArray();
 
     res.send(events);
-  } catch (error) {
-    console.error("My Events Error:", error);
-
-    res.status(500).send({
-      message: "Failed to fetch events",
-    });
-  }
+  
 });
 app.get('/events/:id', async (req, res) => {
   const { id } = req.params;
@@ -165,7 +145,7 @@ app.get('/events/:id', async (req, res) => {
 
 
 app.patch("/events/:id", verifyToken, async (req, res) => {
-  try {
+
     const { id } = req.params;
 
     const result = await eventsCollection.updateOne(
@@ -185,11 +165,7 @@ app.patch("/events/:id", verifyToken, async (req, res) => {
     }
 
     res.send(result);
-  } catch (error) {
-    res.status(500).send({
-      message: "Failed to update event",
-    });
-  }
+  
 });
 
 app.delete("/events/:id", verifyToken, async (req, res) => {
@@ -206,7 +182,7 @@ app.delete("/events/:id", verifyToken, async (req, res) => {
 
 
 app.post("/join", verifyToken, async (req, res) => {
-  try {
+
     const { eventData, userData } = req.body;
     const userEmail = res.locals.user.email;
 
@@ -245,37 +221,19 @@ app.post("/join", verifyToken, async (req, res) => {
       isJoined: true,
       insertedId: result.insertedId,
     });
-  } catch (error) {
-    if (error.code === 11000) {
-      return res.status(409).send({
-        message: "You have already joined this event.",
-        isJoined: true,
-      });
-    }
-
-    console.error("JOIN EVENT ERROR:", error);
-
-    res.status(500).send({
-      message: "Failed to join event.",
-    });
-  }
+  
 });
 
 
 app.get("/join", verifyToken, async (req, res) => {
-  try {
+
     const joinedEvents = await joinedEventsCollection.find().toArray();
     res.send(joinedEvents);
-  } catch (error) {
-    console.error("Failed to fetch joined events:", error);
-    res.status(500).send({
-      message: "Failed to fetch joined events",
-    });
-  }
+ 
 }); 
 
 app.get("/join/:email", verifyToken, async (req, res) => {
-  try {
+
     const email = req.params.email;
 
     const joinedEvents = await joinedEventsCollection
@@ -283,18 +241,12 @@ app.get("/join/:email", verifyToken, async (req, res) => {
       .toArray();
 
     res.send(joinedEvents);
-  } catch (error) {
-    console.log(error);
-
-    res.status(500).send({
-      message: "Failed to fetch joined events",
-    });
-  }
+  
 });
 
 
 app.get("/join/:eventId", verifyToken, async (req, res) => {
-  try {
+
     const { eventId } = req.params;
     const userEmail = res.locals.user.email;
 
@@ -311,19 +263,13 @@ app.get("/join/:eventId", verifyToken, async (req, res) => {
       isJoined: Boolean(joinedRecord),
       attendeesCount,
     });
-  } catch (error) {
-    console.error("JOIN STATUS ERROR:", error);
-
-    res.status(500).send({
-      message: "Failed to check join status",
-    });
-  }
+  
 });
 
 
 
 app.delete("/join/:eventId", verifyToken, async (req, res) => {
-  try {
+
     const { eventId } = req.params;
     const userEmail = res.locals.user.email;
 
@@ -350,21 +296,14 @@ app.delete("/join/:eventId", verifyToken, async (req, res) => {
       success: true,
       message: "Successfully left the event.",
     });
-  } catch (error) {
-    console.error("LEAVE EVENT ERROR:", error);
-
-    res.status(500).send({
-      success: false,
-      message: "Failed to leave the event.",
-    });
-  }
+  
 });
 
 
 
 
 app.get("/join/event/:eventId", async (req, res) => {
-  try {
+
     const { eventId } = req.params;
 
     if (!eventId) {
@@ -386,14 +325,7 @@ app.get("/join/event/:eventId", async (req, res) => {
       .toArray();
 
     return res.status(200).send(joinedRecords);
-  } catch (error) {
-    console.error("FETCH JOINED EVENTS ERROR:", error);
-
-    return res.status(500).send({
-      success: false,
-      message: "Failed to fetch joined events.",
-    });
-  }
+  
 });
 
 
