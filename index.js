@@ -37,7 +37,7 @@ await joinedEventsCollection.createIndex(
     name: "unique_user_event_join",
   }
 );
-const authBaseURL = process.env.BETTER_AUTH_URL;
+const authBaseURL = process.env.BETTER_AUTH_URL || "http://localhost:3000";
 
 if (!authBaseURL) {
   throw new Error("BETTER_AUTH_URL is missing.");
